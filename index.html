@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إنشاء الأسئلة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        select, input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .question-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .option-container {
+            margin-top: 10px;
+        }
+        .option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .option input[type="text"] {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .correct-option {
+            margin-left: 10px;
+        }
+        .add-option {
+            margin-top: 10px;
+            background-color: #27ae60;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        .add-option:hover {
+            background-color: #219653;
+        }
+        .blank-input {
+            background-color: #ffffcc;
+            border: 1px dashed #ccc;
+            padding: 2px 5px;
+        }
+        .enumeration-item {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .enumeration-item input {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>نظام إنشاء الأسئلة</h1>
+        
+        <div class="form-group">
+            <label for="subject">اختر المادة:</label>
+            <select id="subject">
+                <option value="">-- اختر المادة --</option>
+                <option value="science">العلوم</option>
+                <option value="arabic">اللغة العربية</option>
+                <option value="english">اللغة الإنكليزية</option>
+                <option value="history">الكيمياء</option>
+                <option value="history">الفيزياء</option>
+                <option value="history">الرياضيات</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="questionType">اختر نوع السؤال:</label>
+            <select id="questionType">
+                <option value="">-- اختر نوع السؤال --</option>
+                <option value="multiple_choice">اختيار من متعدد</option>
+                <option value="fill_blanks">إكمال الفراغات</option>
+                <option value="enumeration">التعداد</option>
+                <option value="true_false">صح أو خطأ</option>
+                <option value="short_answer">إجابة قصيرة</option>
+            </select>
+        </div>
+        
+        <div id="questionFormContainer"></div>
+        
+        <button id="submitBtn" onclick="submitQuestion()">حفظ السؤال</button>
+    </div>
+
+    <script>
+        // متغير لتخزين خيارات السؤال
+        let optionsCount = 0;
+        let blanksCount = 0;
+        let enumerationCount = 0;
+        
+        // عناصر DOM
+        const questionTypeSelect = document.getElementById('questionType');
+        const questionFormContainer = document.getElementById('questionFormContainer');
+        
+        // استماع لتغيير نوع السؤال
+        questionTypeSelect.addEventListener('change', function() {
+            const questionType = this.value;
+            renderQuestionForm(questionType);
+        });
+        
+        // عرض نموذج السؤال حسب النوع المحدد
+        function renderQuestionForm(questionType) {
+            let formHTML = '';
+            
+            // عنوان السؤال (مشترك بين جميع أنواع الأسئلة)
+            formHTML += `
+                <div class="question-container">
+                    <div class="form-group">
+                        <label for="questionText">نص السؤال:</label>
+                        <textarea id="questionText" rows="3" required></textarea>
+                    </div>
+            `;
+            
+            // إضافة حقول إضافية حسب نوع السؤال
+            switch(questionType) {
+                case 'multiple_choice':
+                    formHTML += `
+                        <div class="form-group">
+                            <label>خيارات الإجابة:</label>
+                            <div id="optionsContainer" class="option-container"></div>
+                            <button type="button" class="add-option" onclick="addOption()">إضافة خيار</button>
+                        </div>
+                        <div class="form-group">
+                            <label for="correctOption">الإجابة الصحيحة:</label>
+                            <select id="correctOption" required></select>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'fill_blanks':
+                    formHTML += `
+                        <div class="form-group">
+                            <label>استخدم <span class="blank-input">[فراغ]</span> للإشارة إلى مكان الفراغات في النص</label>
+                            <div class="form-group">
+                                <label for="blanksAnswers">إجابات الفراغات (افصل بينها بفاصلة):</label>
+                                <input type="text" id="blanksAnswers" placeholder="الإجابة1, الإجابة2, ..." required>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'enumeration':
+                    formHTML += `
+                        <div class="form-group">
+                            <label>بنود التعداد:</label>
+                            <div id="enumerationContainer" class="option-container"></div>
+                            <button type="button" class="add-option" onclick="addEnumerationItem()">إضافة بند</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'true_false':
+                    formHTML += `
+                        <div class="form-group">
+                            <label for="correctAnswer">الإجابة الصحيحة:</label>
+                            <select id="correctAnswer" required>
+                                <option value="">-- اختر الإجابة --</option>
+                                <option value="true">صح</option>
+                                <option value="false">خطأ</option>
+                            </select>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'short_answer':
+                    formHTML += `
+                        <div class="form-group">
+                            <label for="correctShortAnswer">الإجابة الصحيحة:</label>
+                            <input type="text" id="correctShortAnswer" required>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            formHTML += `</div>`;
+            questionFormContainer.innerHTML = formHTML;
+            
+            // إذا كان السؤال من نوع اختيار من متعدد، نضيف خيارين افتراضيين
+            if (questionType === 'multiple_choice') {
+                addOption();
+                addOption();
+            }
+            
+            // إذا كان السؤال من نوع التعداد، نضيف بندين افتراضيين
+            if (questionType === 'enumeration') {
+                addEnumerationItem();
+                addEnumerationItem();
+            }
+        }
+        
+        // إضافة خيار جديد لأسئلة الاختيار من متعدد
+        function addOption() {
+            optionsCount++;
+            const optionsContainer = document.getElementById('optionsContainer');
+            const correctOptionSelect = document.getElementById('correctOption');
+            
+            const optionId = `option_${optionsCount}`;
+            
+            // إنشاء عنصر الخيار الجديد
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option';
+            optionDiv.innerHTML = `
+                <input type="text" id="${optionId}" placeholder="النص الخيار ${optionsCount}" required>
+                <input type="radio" name="correctOptionRadio" value="${optionId}" class="correct-option">
+                <label>إجابة صحيحة</label>
+            `;
+            
+            optionsContainer.appendChild(optionDiv);
+            
+            // إضافة الخيار إلى قائمة الاختيار الصحيح
+            const optionElement = document.createElement('option');
+            optionElement.value = optionId;
+            optionElement.textContent = `الخيار ${optionsCount}`;
+            correctOptionSelect.appendChild(optionElement);
+            
+            // تحديث اختيار الراديو عند تغيير القائمة المنسدلة
+            correctOptionSelect.addEventListener('change', function() {
+                const selectedOptionId = this.value;
+                document.querySelector(`input[value="${selectedOptionId}"]`).checked = true;
+            });
+            
+            // تحديث القائمة المنسدلة عند تغيير اختيار الراديو
+            const radioInput = optionDiv.querySelector('input[type="radio"]');
+            radioInput.addEventListener('change', function() {
+                if (this.checked) {
+                    correctOptionSelect.value = this.value;
+                }
+            });
+        }
+        
+        // إضافة بند جديد لأسئلة التعداد
+        function addEnumerationItem() {
+            enumerationCount++;
+            const enumerationContainer = document.getElementById('enumerationContainer');
+            
+            const itemId = `enum_item_${enumerationCount}`;
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'enumeration-item';
+            itemDiv.innerHTML = `
+                <span>${enumerationCount}.</span>
+                <input type="text" id="${itemId}" placeholder="النص البند ${enumerationCount}" required>
+            `;
+            
+            enumerationContainer.appendChild(itemDiv);
+        }
+        
+        // إرسال البيانات إلى Google Sheets
+        function submitQuestion() {
+            const subject = document.getElementById('subject').value;
+            const questionType = document.getElementById('questionType').value;
+            const questionText = document.getElementById('questionText').value;
+            
+            if (!subject || !questionType || !questionText) {
+                alert('الرجاء تعبئة جميع الحقول المطلوبة');
+                return;
+            }
+            
+            let questionData = {
+                subject: subject,
+                questionType: questionType,
+                questionText: questionText,
+                timestamp: new Date().toLocaleString()
+            };
+            
+            // جمع بيانات إضافية حسب نوع السؤال
+            switch(questionType) {
+                case 'multiple_choice':
+                    const options = [];
+                    let correctOptionText = '';
+                    
+                    // جمع جميع الخيارات
+                    for (let i = 1; i <= optionsCount; i++) {
+                        const optionId = `option_${i}`;
+                        const optionText = document.getElementById(optionId).value;
+                        options.push(optionText);
+                        
+                        // التحقق إذا كان هذا الخيار هو الصحيح
+                        if (document.querySelector(`input[value="${optionId}"]`).checked) {
+                            correctOptionText = optionText;
+                        }
+                    }
+                    
+                    questionData.options = options.join('|');
+                    questionData.correctAnswer = correctOptionText;
+                    break;
+                    
+                case 'fill_blanks':
+                    questionData.correctAnswer = document.getElementById('blanksAnswers').value;
+                    break;
+                    
+                case 'enumeration':
+                    const enumerationItems = [];
+                    for (let i = 1; i <= enumerationCount; i++) {
+                        const itemId = `enum_item_${i}`;
+                        const itemText = document.getElementById(itemId).value;
+                        enumerationItems.push(itemText);
+                    }
+                    questionData.correctAnswer = enumerationItems.join('|');
+                    break;
+                    
+                case 'true_false':
+                    questionData.correctAnswer = document.getElementById('correctAnswer').value;
+                    break;
+                    
+                case 'short_answer':
+                    questionData.correctAnswer = document.getElementById('correctShortAnswer').value;
+                    break;
+            }
+            
+            // هنا نرسل البيانات إلى Google Sheets
+            sendToGoogleSheets(questionData);
+        }
+        
+        // دالة لإرسال البيانات إلى Google Sheets
+        function sendToGoogleSheets(data) {
+            // في الواقع، تحتاج إلى استبدال هذا برمز لإرسال البيانات إلى Google Sheets
+            // يمكنك استخدام Google Apps Script لإنشاء نقطة نهاية API
+            
+            // هذا مثال فقط للتوضيح:
+            console.log('بيانات السؤال المرسلة:', data);
+            
+            // رابط النصي Google Apps Script (يجب استبداله برابطك الخاص)
+            const scriptURL = 'https://script.google.com/macros/s/AKfycbxVyfGLE7z1vGYo_Mv142JisZZo6p_a996eeHbvOK9rE7y7dzMpTgwHDptjTZwQ32Nk/exec';
+            
+            fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                alert('تم حفظ السؤال بنجاح!');
+                resetForm();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء حفظ السؤال');
+            });
+        }
+        
+        // إعادة تعيين النموذج بعد الحفظ
+        function resetForm() {
+            document.getElementById('subject').value = '';
+            document.getElementById('questionType').value = '';
+            questionFormContainer.innerHTML = '';
+            optionsCount = 0;
+            enumerationCount = 0;
+        }
+    </script>
+</body>
+</html>
